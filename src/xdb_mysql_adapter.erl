@@ -92,14 +92,14 @@ delete(Repo, #{schema := Schema, source := Source}, Filters, _Opts) ->
   end.
 
 %% @hidden
-execute(Repo, Op, #{schema := Schema, source := Source}, Query, _Opts) ->
+execute(Repo, Op, #{schema := Schema, source := Source}, Query, Opts) ->
   case get(self()) of
     undefined ->
       poolboy:transaction(pool_name(Repo), fun(Worker) ->
-        do_execute(Worker, Op, Schema, Source, Query)
+        do_execute(Worker, Op, Schema, Source, Query, Opts)
       end);
     Pid ->
-      do_execute(Pid, Op, Schema, Source, Query)
+      do_execute(Pid, Op, Schema, Source, Query, Opts)
   end.
 
 %% @hidden
@@ -194,7 +194,10 @@ do_insert_all(Pid, #{schema := Schema} = Meta, List0) ->
   end).
 
 %% @private
-do_execute(Pid, all, Schema, Source, Query) ->
+do_execute(Pid, Op, Schema, Source, Query) ->
+  do_execute(Pid, Op, Schema, Source, Query, []).
+
+do_execute(Pid, all, Schema, Source, Query, Opts) ->
   Conditions = normalize_query(maps:get(where, Query, [])),
   SelectFields = maps:get(select, Query, []),
   Limit = maps:get(limit, Query, 0),
@@ -202,8 +205,10 @@ do_execute(Pid, all, Schema, Source, Query) ->
 
   {Query0, Params} = xdb_sql:s(Source, SelectFields, Conditions, [], Offset, Limit, ""),
 
+  Query1 = check_options(Opts, Query0),
+
   maybe_transaction(Pid, fun() ->
-    case mysql:query(Pid, lists:flatten(Query0), Params) of
+    case mysql:query(Pid, lists:flatten(Query1), Params) of
       {ok, Key, Values} ->
         Result0 = [res_to_map(Key, Value, []) || Value <- Values],
         Result = [normalize(Schema, Field) || Field <- Result0],
@@ -214,10 +219,10 @@ do_execute(Pid, all, Schema, Source, Query) ->
         error({db_error, Description})
     end
   end);
-do_execute(Pid, delete_all, _Schema, Source, Query) ->
+do_execute(Pid, delete_all, _Schema, Source, Query, _Opts) ->
   Conditions = normalize_query(maps:get(where, Query, [])),
 
-  {CountQuery, CountParams}= get_count_query(Source, Conditions),
+  {CountQuery, CountParams} = get_count_query(Source, Conditions),
   {DQuery, DParams} = get_delete_query(Source, Conditions),
 
   maybe_transaction(Pid, fun() ->
@@ -231,7 +236,7 @@ do_execute(Pid, delete_all, _Schema, Source, Query) ->
         error({db_error, Description})
     end
   end);
-do_execute(Pid, update_all, _Schema, Source, Query) ->
+do_execute(Pid, update_all, _Schema, Source, Query, _Opts) ->
   Conditions = normalize_query(maps:get(where, Query, [])),
   UpdateFields = normalize_query(maps:get(updates, Query, [])),
 
@@ -455,3 +460,10 @@ maybe_transaction(_Pid, Fun, true) ->
   Fun();
 maybe_transaction(Pid, Fun, false) ->
   exec_transaction(Pid, Fun).
+
+%% @private
+check_options(Opts, Query) ->
+  case xdb_lib:keyfind(for_update, Opts) of
+    true -> Query ++ " FOR UPDATE";
+    _    -> Query
+  end.
