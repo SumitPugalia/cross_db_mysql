@@ -1,0 +1,17 @@
+{application, cross_db_mysql, [
+  {description, "MySQL adapter for CrossDB"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {xdb_mysql, []}},
+  {applications, [
+    kernel,
+    stdlib,
+    poolboy,
+    mysql
+  ]},
+  {env,[]},
+  {modules, []},
+  {maintainers, ["PegB Dev Team"]},
+  {licenses, []},
+  {links, []}
+]}.
