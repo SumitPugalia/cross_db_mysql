@@ -1,11 +1,15 @@
 -module(xdb_mysql_query_conditions_SUITE).
 
-
 %% Common Test
 -export([
   all/0,
   init_per_suite/1,
   end_per_suite/1
+]).
+
+%% Test Cases
+-export([
+  t_order_by/1
 ]).
 
 -include_lib("mixer/include/mixer.hrl").
@@ -56,3 +60,38 @@ init_per_suite(Config) ->
 -spec end_per_suite(xdb_ct:config()) -> ok.
 end_per_suite(_) ->
   ok = application:stop(cross_db_mysql).
+
+%%%===================================================================
+%%% Test Cases
+%%%===================================================================
+
+-spec t_order_by(xdb_ct:config()) -> ok.
+t_order_by(Config) ->
+  Repo = xdb_lib:keyfetch(repo, Config),
+
+  #{
+    1 := #{'__meta__' := _, first_name := <<"Alan">>, last_name := <<"Turing">>, age := 41},
+    2 := #{'__meta__' := _, first_name := <<"Charles">>, last_name := <<"Darwin">>, age := 73},
+    3 := #{'__meta__' := _, first_name := <<"Alan">>, last_name := <<"Poe">>, age := 40},
+    4 := #{'__meta__' := _, first_name := <<"John">>, last_name := <<"Lennon">>, age:= 40}
+  } = All = person:list_to_map(Repo:all(person)),
+  4 = maps:size(All),
+
+  DescQuery = xdb_query:from(person, [{order_by, [{age, desc}]}]),
+  #{
+    2 := #{'__meta__' := _, first_name := <<"Charles">>, last_name := <<"Darwin">>, age := 73},
+    1 := #{'__meta__' := _, first_name := <<"Alan">>, last_name := <<"Turing">>, age := 41},
+    3 := #{'__meta__' := _, first_name := <<"Alan">>, last_name := <<"Poe">>, age := 40},
+    4 := #{'__meta__' := _, first_name := <<"John">>, last_name := <<"Lennon">>, age:= 40}
+  } = All2 = person:list_to_map(Repo:all(DescQuery)),
+  4 = maps:size(All2),
+
+  AscQuery = xdb_query:from(person, [{order_by, [{age, asc}]}]),
+  #{
+    3 := #{'__meta__' := _, first_name := <<"Alan">>, last_name := <<"Poe">>, age := 40},
+    4 := #{'__meta__' := _, first_name := <<"John">>, last_name := <<"Lennon">>, age:= 40},
+    1 := #{'__meta__' := _, first_name := <<"Alan">>, last_name := <<"Turing">>, age := 41},
+    2 := #{'__meta__' := _, first_name := <<"Charles">>, last_name := <<"Darwin">>, age := 73}
+  } = All3 = person:list_to_map(Repo:all(AscQuery)),
+ 4 = maps:size(All3),
+ ok.
