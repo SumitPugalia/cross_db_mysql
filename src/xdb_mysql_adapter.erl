@@ -202,8 +202,9 @@ do_execute(Pid, all, Schema, Source, Query, Opts) ->
   SelectFields = maps:get(select, Query, []),
   Limit = maps:get(limit, Query, 0),
   Offset = maps:get(offset, Query, 0),
+  OrderBy = order_by(maps:get(order_by, Query, "")),
 
-  {Query0, Params} = xdb_sql:s(Source, SelectFields, Conditions, [], Offset, Limit, ""),
+  {Query0, Params} = xdb_sql:s(Source, SelectFields, Conditions, [], Offset, Limit, OrderBy),
 
   Query1 = check_options(Opts, Query0),
 
@@ -467,3 +468,9 @@ check_options(Opts, Query) ->
     true -> Query ++ " FOR UPDATE";
     _    -> Query
   end.
+
+%% @private
+order_by("") ->
+  "";
+order_by(OrderBy) ->
+  xdb_sql:order_by_clause(OrderBy).
