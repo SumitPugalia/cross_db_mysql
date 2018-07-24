@@ -222,15 +222,21 @@ do_execute(Pid, all, Schema, Source, Query, Opts) ->
   end);
 do_execute(Pid, delete_all, _Schema, Source, Query, _Opts) ->
   Conditions = normalize_query(maps:get(where, Query, [])),
+  Limit = maps:get(limit, Query, ""),
 
   {CountQuery, CountParams} = get_count_query(Source, Conditions),
-  {DQuery, DParams} = get_delete_query(Source, Conditions),
+  {DQuery0, DParams} = get_delete_query(Source, Conditions),
+  DQuery = 
+    case Limit of
+      "" -> lists:flatten(DQuery0);
+      _ -> lists:flatten(DQuery0) ++ " LIMIT " ++ integer_to_list(Limit)
+    end,
 
   maybe_transaction(Pid, fun() ->
     Count = do_count(Pid, CountQuery, CountParams),
-    case mysql:query(Pid, lists:flatten(DQuery), DParams) of
+    case mysql:query(Pid, DQuery, DParams) of
       ok ->
-        {Count, undefined};
+        {min(Count, Limit), undefined};
       {error, {Code, _SqlState, Reason}} ->
         Description = <<"Error with Code:", (integer_to_binary(Code))/binary,
             " and Reason:", Reason/binary>>,
