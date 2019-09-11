@@ -1,7 +1,7 @@
 {"1.1.0",
 [{<<"cross_db">>,
   {git,"https://github.com/cabol/cross_db",
-       {ref,"312c8f8cac344ce498cf18b1e154f3c3f895e577"}},
+       {ref,"1bbe07ab28691dd9c664b70647ed59b0e1884d01"}},
   0},
  {<<"iso8601">>,{pkg,<<"iso8601">>,<<"1.2.3">>},1},
  {<<"mysql">>,
