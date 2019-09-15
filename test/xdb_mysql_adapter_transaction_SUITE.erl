@@ -62,8 +62,8 @@ t_transaction_exception(Config) ->
       #{b := _B} = A
     end),
 
-  {error, undef} =
+  {error, undef, _} =
     Repo:transaction(fun() ->
       Repo:in_transaction(Repo, 2)
-    end),
+    end, [{return_stacktrace, true}]),
   ok.

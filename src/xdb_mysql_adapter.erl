@@ -103,7 +103,7 @@ execute(Repo, Op, #{schema := Schema, source := Source}, Query, Opts) ->
   end.
 
 %% @hidden
-transaction(Repo, Fun, _Opts) ->
+transaction(Repo, Fun, Opts) ->
   TxFun =
     fun() ->
       case Fun() of
@@ -118,8 +118,11 @@ transaction(Repo, Fun, _Opts) ->
       case mysql:transaction(Worker, TxFun) of
         {atomic, Result} ->
           {ok, Result};
-        {aborted, {Error, Reason}} when is_list(Reason) ->
-          {error, Error};
+        {aborted, {Error, Trace}} when is_list(Trace) ->
+          case proplists:lookup(return_stacktrace, Opts) of
+            {_, true} -> {error, Error, Trace};
+            _ -> {error, Error}
+          end;
         {aborted, Reason} ->
           {error, Reason}
       end,
